@@ -1,6 +1,6 @@
 - case: signal_send_has_correct_signature
   main: |
-    from celery_signals import Signal
+    from signals import Signal
 
     class MySignal(Signal):
         number: int
@@ -9,7 +9,7 @@
 
 - case: signal_with_inheritance_send_has_correct_signature
   main: |
-    from celery_signals import Signal
+    from signals import Signal
 
     class BaseSignal(Signal):
         number_1: int
@@ -19,13 +19,24 @@
 
     reveal_type(MySignal.send)  # N: Revealed type is 'def (*, number_2: builtins.int, number_1: builtins.int)'
 
-- case: test_receiver_invalid_parameter
+- case: test_receiver_parameter_unexpected
   main: |
-    from celery_signals import Signal
+    from signals import Signal
 
     class MySignal(Signal):
         number: int
 
     @MySignal.receiver()
-    def test(string: int):  # N: Unexpected argument "number" for "MySignal" receiver "test"
+    def test(*, string: int) -> None:  # E: Unexpected parameter "string" for "MySignal" receiver "test"
+        pass
+
+- case: test_receiver_parameter_wrong_type
+  main: |
+    from signals import Signal
+
+    class MySignal(Signal):
+        number: int
+
+    @MySignal.receiver()
+    def test(*, number: str) -> None:  # E: Parameter "string" of "MySignal" receiver "test" has incompatible type "str"; expected "int"
         pass

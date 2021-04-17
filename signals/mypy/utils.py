@@ -5,8 +5,10 @@ Various helpers for the mypy plugin
 # Pylint doesn't understand mypy, so disable some checkers for this file
 # pylint: disable=no-name-in-module
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
+from mypy.checker import TypeChecker
+from mypy.fixup import TypeFixer
 from mypy.nodes import (
     ARG_POS,
     MDEF,
@@ -22,7 +24,14 @@ from mypy.nodes import (
 )
 from mypy.plugin import SemanticAnalyzerPluginInterface
 from mypy.semanal import set_callable_name
-from mypy.types import CallableType, Type, TypeType, TypeVarDef
+from mypy.types import (
+    CallableType,
+    JsonDict,
+    Type,
+    TypeType,
+    TypeVarDef,
+    deserialize_type,
+)
 from mypy.typevars import fill_typevars
 from mypy.util import get_unique_redefinition_name
 
@@ -108,3 +117,11 @@ def add_method_to_class(
 
     info.names[name] = sym
     info.defn.defs.body.append(func)
+
+
+def deserialize_and_fixup_type(
+    data: Union[str, JsonDict], api: Union[SemanticAnalyzerPluginInterface, TypeChecker]
+) -> Type:
+    typ = deserialize_type(data)
+    typ.accept(TypeFixer(api.modules, allow_missing=False))
+    return typ

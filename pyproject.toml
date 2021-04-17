@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "celery-signals"
+name = "signals"
 version = "0.1.0"
 description = "Django's signals, only using Celery as the executor"
 authors = ["Sigurd Ljødal"]

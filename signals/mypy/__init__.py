@@ -7,8 +7,9 @@ Mypy plugin for improving the type checking of the signals.
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Union
 
+from mypy.checker import TypeChecker
 from mypy.nodes import (
     ARG_NAMED,
     ARG_NAMED_OPT,
@@ -21,12 +22,13 @@ from mypy.nodes import (
     Var,
 )
 from mypy.plugin import ClassDefContext, Plugin, SemanticAnalyzerPluginInterface
-from mypy.plugins.common import deserialize_and_fixup_type
 from mypy.server.trigger import make_wildcard_trigger
 from mypy.typeops import map_type_from_supertype
 from mypy.types import AnyType, JsonDict, NoneType, Type, TypeOfAny, TypeVarType
 
-from .utils import add_method_to_class
+from .utils import add_method_to_class, deserialize_and_fixup_type
+
+API = Union[TypeChecker, SemanticAnalyzerPluginInterface]
 
 #####################
 # Plugin definition #
@@ -52,9 +54,9 @@ class SignalsPlugin(Plugin):
             symbol
             and symbol.node
             and isinstance(symbol.node, TypeInfo)
-            and (symbol.node.has_base("celery_signals.Signal"))
+            and (symbol.node.has_base("signals.Signal"))
         ):
-            return make_signal
+            return collect_signal_metadata
 
         return None
 
@@ -75,9 +77,37 @@ def plugin(version: str):
 METADATA_KEY = "signals"
 
 
+class SignalMetadata:
+    def __init__(self, *, name: str, attributes: List[SignalAttribute]) -> None:
+        self.name = name
+        self.attributes = attributes
+
+    def __str__(self) -> str:
+        return f"name={self.name} attributes={self.attributes}"
+
+    def __repr__(self) -> str:
+        return f"<SignalMetadata {str(self)}>"
+
+    def serialize(self) -> JsonDict:
+        return {
+            "name": self.name,
+            "attributes": [attribute.serialize() for attribute in self.attributes],
+        }
+
+    @classmethod
+    def deserialize(cls, info: TypeInfo, data: JsonDict, api: API) -> SignalMetadata:
+        return cls(
+            name=data["name"],
+            attributes=[
+                SignalAttribute.deserialize(info=info, data=attribute, api=api)
+                for attribute in data["attributes"]
+            ],
+        )
+
+
 class SignalAttribute:
     def __init__(
-        self, name: str, type_annotation: Type, has_default: bool, info: TypeInfo
+        self, *, name: str, type_annotation: Type, has_default: bool, info: TypeInfo
     ) -> None:
         self.name = name
         self.type_annotation = type_annotation
@@ -109,9 +139,7 @@ class SignalAttribute:
         }
 
     @classmethod
-    def deserialize(
-        cls, info: TypeInfo, data: JsonDict, api: SemanticAnalyzerPluginInterface
-    ) -> SignalAttribute:
+    def deserialize(cls, info: TypeInfo, data: JsonDict, api: API) -> SignalAttribute:
         data = data.copy()
         typ = deserialize_and_fixup_type(data.pop("type"), api)
         return cls(type_annotation=typ, info=info, **data)
@@ -136,6 +164,7 @@ class SignalTransformer:
         Apply transformations to the Signal class to improve type checking.
         """
 
+        name = self._ctx.cls.name
         attributes = self.collect_attributes()
         if not attributes:
             # print(f"No attributes on {self._ctx.cls.name}")
@@ -152,9 +181,9 @@ class SignalTransformer:
             is_classmethod=True,
         )
 
-        self._ctx.cls.info.metadata[METADATA_KEY] = {
-            "attributes": [attr.serialize() for attr in attributes],
-        }
+        self._ctx.cls.info.metadata[METADATA_KEY] = SignalMetadata(
+            name=name, attributes=attributes
+        ).serialize()
 
     def collect_attributes(self) -> Optional[List[SignalAttribute]]:
         """
@@ -235,7 +264,7 @@ class SignalTransformer:
         return list(attributes.values())
 
 
-def make_signal(ctx: ClassDefContext) -> None:
+def collect_signal_metadata(ctx: ClassDefContext) -> None:
     """
     Type check and build a signal.
     """
