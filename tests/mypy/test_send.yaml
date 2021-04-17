@@ -1,0 +1,31 @@
+- case: signal_send_has_correct_signature
+  main: |
+    from celery_signals import Signal
+
+    class MySignal(Signal):
+        number: int
+
+    reveal_type(MySignal.send)  # N: Revealed type is 'def (*, number: builtins.int)'
+
+- case: signal_with_inheritance_send_has_correct_signature
+  main: |
+    from celery_signals import Signal
+
+    class BaseSignal(Signal):
+        number_1: int
+
+    class MySignal(BaseSignal):
+        number_2: int
+
+    reveal_type(MySignal.send)  # N: Revealed type is 'def (*, number_2: builtins.int, number_1: builtins.int)'
+
+- case: test_receiver_invalid_parameter
+  main: |
+    from celery_signals import Signal
+
+    class MySignal(Signal):
+        number: int
+
+    @MySignal.receiver()
+    def test(string: int):  # N: Unexpected argument "number" for "MySignal" receiver "test"
+        pass

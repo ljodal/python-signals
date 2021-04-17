@@ -1,0 +1,63 @@
+[tool.poetry]
+name = "celery-signals"
+version = "0.1.0"
+description = "Django's signals, only using Celery as the executor"
+authors = ["Sigurd Ljødal"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = ">= 3.7, < 3.10"
+celery = ">=5.0,<6.0"
+
+[tool.poetry.dev-dependencies]
+isort = "^5.8.0"
+black = "^20.8b1"
+pylint = "^2.7.4"
+flake8 = "^3.9.1"
+flake8-bugbear = "^21.4.3"
+mypy = "^0.812"
+pytest = "^6.2.3"
+pytest-mypy-plugins = "^1.6.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+target_version = ['py37']
+include = '\.pyi?$'
+safe = true
+exclude = '''
+/(
+    \.git
+  | __pycache__
+)/
+'''
+
+[tool.isort]
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+use_parentheses = true
+
+[tool.pylint.messages_control]
+# Disabled for compability with Black, from
+# https://black.readthedocs.io/en/stable/compatible_configs.html#pylint
+#
+# C0330: Wrong hanging indentation before block (add 4 spaces)
+# C0326: Bad whitespace
+#
+# Disabled for other reasons:
+# C0103: Invalid name
+# C0115: Missing class docstring
+# C0116: Missing function or method docstring
+# R0903: Too few public methods
+# R0913: Too many arguments
+# R0914: Too many local variable
+# W0613: Unused argument
+# W0703: Catching too general exception
+#
+disable = "C0103, C0115, C0116, C0330, C0326, R0903, R0913, R0914, W0613, W0703"
+
+[tool.pylint.format]
+max-line-length = "88"
