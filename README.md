@@ -4,7 +4,7 @@ This package implements a pub/sub style concept in Python.
 
 It's inspired by Django's signals, but with some major changes:
 
- * Strict type checking, but at runtime and statically with mypy
+ * Strict type checking, both at runtime and statically with mypy
  * Support for running receivers in the background with celery
 
 
